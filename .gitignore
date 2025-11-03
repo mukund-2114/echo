@@ -1,0 +1,130 @@
+# Echo - Git Ignore File
+
+# ============================================
+# Environment Variables & Secrets
+# ============================================
+.env
+.env.local
+.env.*.local
+.env.production
+
+# API Keys and Secrets
+secrets/
+*.key
+*.pem
+
+# ============================================
+# Dependencies
+# ============================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ============================================
+# Expo & React Native
+# ============================================
+.expo/
+.expo-shared/
+dist/
+web-build/
+
+# ============================================
+# Native Builds
+# ============================================
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+*.orig.*
+
+# iOS
+ios/Pods/
+ios/build/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata
+*.xccheckout
+*.moved-aside
+DerivedData
+*.hmap
+*.ipa
+*.xcuserstate
+ios/.xcode.env.local
+
+# Android
+android/app/build/
+android/app/release/
+android/.gradle/
+android/captures/
+android/gradlew
+android/gradlew.bat
+android/local.properties
+*.apk
+*.aab
+
+# ============================================
+# IDE & Editors
+# ============================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ============================================
+# Testing
+# ============================================
+coverage/
+.nyc_output/
+*.lcov
+
+# ============================================
+# Logs
+# ============================================
+logs/
+*.log
+
+# ============================================
+# Database
+# ============================================
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# ============================================
+# Temporary Files
+# ============================================
+tmp/
+temp/
+*.tmp
+
+# ============================================
+# Build Artifacts
+# ============================================
+build/
+dist/
+out/
+
+# ============================================
+# OS Files
+# ============================================
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ============================================
+# Misc
+# ============================================
+.cache/
+*.bak
+*.backup
