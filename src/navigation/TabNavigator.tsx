@@ -1,4 +1,5 @@
 import React from 'react';
+import { Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MainTabParamList } from './types';
 import { Colors } from '@/constants/colors';
@@ -101,9 +102,10 @@ export default function TabNavigator() {
 
 // Simple emoji icon component
 function TabIcon({ icon, color, size }: { icon: string; color: string; size: number }) {
+  // Use Text for React Native compatibility instead of span
+  const opacity = color === Colors.primary ? 1 : 0.6;
   return (
-    <span style={{ fontSize: size, opacity: color === Colors.primary ? 1 : 0.6 }}>
-      {icon}
-    </span>
+    // eslint-disable-next-line react-native/no-inline-styles
+    <Text style={{ fontSize: size, opacity }}>{icon}</Text>
   );
 }
