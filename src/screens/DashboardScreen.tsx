@@ -1,17 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/constants/colors';
 import { useMood } from '@/context/MoodContext';
 import Card from '@/components/ui/Card';
 import { taskRepository } from '@/database/repositories/TaskRepository';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getDailyCoding, getDailyQuote, getDailyWord } from '@/utils/daily';
+import type { Task } from '@/types';
 
 export default function DashboardScreen() {
   const { loading, latest, average7 } = useMood();
   const navigation = useNavigation();
   const [pendingCount, setPendingCount] = useState(0);
   const [dueTodayCount, setDueTodayCount] = useState(0);
+  const [topTasks, setTopTasks] = useState<Task[]>([]);
+  const [note, setNote] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -26,6 +32,10 @@ export default function DashboardScreen() {
         const dueToday = pending.filter((t) => t.dueDate && t.dueDate >= start && t.dueDate <= end);
         setPendingCount(pending.length);
         setDueTodayCount(dueToday.length);
+        setTopTasks(pending.slice(0, 3));
+
+        const saved = await AsyncStorage.getItem('journal.quickNote');
+        if (saved != null) setNote(saved);
       } catch (e) {
         // Swallow for dashboard
       }
@@ -80,6 +90,55 @@ export default function DashboardScreen() {
             </Text>
           </>
         )}
+      </Card>
+
+      <Card title="Top 3 tasks for today">
+        {topTasks.length === 0 ? (
+          <Text style={styles.cardRow}>No pending tasks. Add one from Tasks.</Text>
+        ) : (
+          topTasks.map((t) => (
+            <View key={t.id} style={styles.topTaskRow}>
+              <Text style={styles.topTaskBullet}>•</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.topTaskTitle}>{t.title}</Text>
+                {t.dueDate ? <Text style={styles.topTaskMeta}>Due {t.dueDate.toLocaleDateString()}</Text> : null}
+              </View>
+            </View>
+          ))
+        )}
+      </Card>
+
+      <Card title="Quick journal note">
+        <TextInput
+          style={styles.noteInput}
+          placeholder="Jot down what's on your mind..."
+          placeholderTextColor={Colors.textLight}
+          value={note}
+          onChangeText={setNote}
+          multiline
+        />
+        <TouchableOpacity
+          style={[styles.noteSaveBtn, savingNote && { opacity: 0.6 }]}
+          onPress={async () => {
+            try {
+              setSavingNote(true);
+              await AsyncStorage.setItem('journal.quickNote', note);
+            } finally {
+              setSavingNote(false);
+            }
+          }}
+          disabled={savingNote}
+        >
+          <Text style={styles.noteSaveText}>{savingNote ? 'Saving...' : 'Save note'}</Text>
+        </TouchableOpacity>
+      </Card>
+
+      <Card title="Daily learning & motivation">
+        <Text style={styles.cardRow}>Word: <Text style={styles.cardValue}>{getDailyWord().word}</Text></Text>
+        <Text style={styles.cardRow}>Meaning: <Text style={styles.cardValue}>{getDailyWord().meaning}</Text></Text>
+        <Text style={styles.cardRow}>Coding: <Text style={styles.cardValue}>{getDailyCoding().title}</Text></Text>
+        <Text style={styles.cardRow}>Tip: <Text style={styles.cardValue}>{getDailyCoding().tip}</Text></Text>
+        <Text style={[styles.cardRow, { marginTop: 10 }]}>Quote: <Text style={styles.cardValue}>{getDailyQuote()}</Text></Text>
       </Card>
     </View>
   );
@@ -163,5 +222,46 @@ const styles = StyleSheet.create({
   cardValue: {
     color: Colors.text,
     fontWeight: '600',
+  },
+  topTaskRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 6,
+  },
+  topTaskBullet: {
+    marginRight: 8,
+    color: Colors.textSecondary,
+    fontSize: 18,
+    lineHeight: 18,
+  },
+  topTaskTitle: {
+    color: Colors.text,
+    fontSize: 16,
+  },
+  topTaskMeta: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  noteInput: {
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    color: Colors.text,
+    padding: 12,
+    minHeight: 60,
+  },
+  noteSaveBtn: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.primary,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    marginTop: 10,
+  },
+  noteSaveText: {
+    color: Colors.textWhite,
+    fontWeight: '700',
   },
 });
