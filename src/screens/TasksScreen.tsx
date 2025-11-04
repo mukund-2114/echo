@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl } from 'react-native';
 import { Colors } from '@/constants/colors';
-import { Task } from '@/types';
+import { Priority, Task } from '@/types';
 import { taskRepository } from '@/database/repositories/TaskRepository';
 
 const DEFAULT_USER_ID = 'user-1';
@@ -12,6 +12,8 @@ export default function TasksScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [title, setTitle] = useState('');
   const [adding, setAdding] = useState(false);
+  const [priority, setPriority] = useState<Priority>(Priority.MEDIUM);
+  const [dueQuick, setDueQuick] = useState<'none' | 'today' | 'tomorrow'>('none');
 
   const load = async () => {
     try {
@@ -43,8 +45,20 @@ export default function TasksScreen() {
     if (!trimmed) return;
     setAdding(true);
     try {
-      await taskRepository.create({ userId: DEFAULT_USER_ID, title: trimmed });
+      let dueDate: Date | undefined;
+      if (dueQuick === 'today') {
+        dueDate = new Date();
+        dueDate.setHours(23, 59, 59, 999);
+      } else if (dueQuick === 'tomorrow') {
+        dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 1);
+        dueDate.setHours(23, 59, 59, 999);
+      }
+
+      await taskRepository.create({ userId: DEFAULT_USER_ID, title: trimmed, priority, dueDate });
       setTitle('');
+      setPriority(Priority.MEDIUM);
+      setDueQuick('none');
       await load();
     } catch (e) {
       console.error('Failed to add task:', e);
@@ -86,6 +100,20 @@ export default function TasksScreen() {
           onSubmitEditing={addTask}
           returnKeyType="done"
         />
+        <View style={styles.priorityGroup}>
+          {([Priority.HIGH, Priority.MEDIUM, Priority.LOW] as Priority[]).map((p) => (
+            <TouchableOpacity key={p} style={[styles.priorityPill, priority === p && styles.priorityPillActive]} onPress={() => setPriority(p)}>
+              <Text style={[styles.priorityText, priority === p && styles.priorityTextActive]}>{p[0].toUpperCase()}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <View style={styles.dueGroup}>
+          {(['none','today','tomorrow'] as const).map((opt) => (
+            <TouchableOpacity key={opt} style={[styles.duePill, dueQuick === opt && styles.duePillActive]} onPress={() => setDueQuick(opt)}>
+              <Text style={[styles.dueText, dueQuick === opt && styles.dueTextActive]}>{opt === 'none' ? '-' : opt === 'today' ? 'T' : 'T+1'}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
         <TouchableOpacity style={[styles.addButton, (!title.trim() || adding) && styles.addButtonDisabled]} onPress={addTask} disabled={!title.trim() || adding}>
           <Text style={styles.addButtonText}>{adding ? '...' : 'Add'}</Text>
         </TouchableOpacity>
@@ -103,7 +131,12 @@ export default function TasksScreen() {
             </TouchableOpacity>
             <View style={styles.itemBody}>
               <Text style={[styles.itemTitle, t.status === 'completed' && styles.itemTitleDone]}>{t.title}</Text>
-              {t.dueDate ? <Text style={styles.itemMeta}>Due {t.dueDate.toLocaleDateString()}</Text> : null}
+              <View style={styles.itemMetaRow}>
+                <Text style={styles.priorityBadge}>
+                  {t.priority === 'high' ? '🔥 High' : t.priority === 'medium' ? '• Medium' : '↓ Low'}
+                </Text>
+                {t.dueDate ? <Text style={styles.itemMeta}> · Due {t.dueDate.toLocaleDateString()}</Text> : null}
+              </View>
             </View>
             <TouchableOpacity onPress={() => remove(t.id)}>
               <Text style={styles.delete}>Delete</Text>
@@ -136,6 +169,52 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  priorityGroup: {
+    flexDirection: 'row',
+    marginRight: 8,
+  },
+  priorityPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginRight: 6,
+    backgroundColor: Colors.surface,
+  },
+  priorityPillActive: {
+    borderColor: Colors.primary,
+  },
+  priorityText: {
+    color: Colors.textSecondary,
+    fontWeight: '600',
+  },
+  priorityTextActive: {
+    color: Colors.primary,
+  },
+  dueGroup: {
+    flexDirection: 'row',
+    marginRight: 8,
+  },
+  duePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginRight: 6,
+    backgroundColor: Colors.surface,
+  },
+  duePillActive: {
+    borderColor: Colors.primary,
+  },
+  dueText: {
+    color: Colors.textSecondary,
+    fontWeight: '600',
+  },
+  dueTextActive: {
+    color: Colors.primary,
   },
   input: {
     flex: 1,
@@ -205,6 +284,15 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: 12,
     marginTop: 2,
+  },
+  itemMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  priorityBadge: {
+    color: Colors.textSecondary,
+    fontSize: 12,
   },
   delete: {
     color: Colors.error,
