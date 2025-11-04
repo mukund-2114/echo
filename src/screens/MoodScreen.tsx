@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,10 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Colors } from '@/constants/colors';
-import { MoodType } from '@/types';
+import { MoodEntry, MoodType } from '@/types';
 import MoodSelector from '@/components/mood/MoodSelector';
 import IntensitySlider from '@/components/mood/IntensitySlider';
 import { moodRepository } from '@/database/repositories/MoodRepository';
@@ -19,6 +20,24 @@ export default function MoodScreen() {
   const [intensity, setIntensity] = useState(5);
   const [note, setNote] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [recentEntries, setRecentEntries] = useState<MoodEntry[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  const loadRecent = async () => {
+    try {
+      setLoadingHistory(true);
+      const entries = await moodRepository.findByUserId('user-1', 10);
+      setRecentEntries(entries);
+    } catch (error) {
+      console.error('Failed to load recent moods:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  useEffect(() => {
+    loadRecent();
+  }, []);
 
   const handleSave = async () => {
     if (!selectedMood) {
@@ -42,6 +61,8 @@ export default function MoodScreen() {
       setSelectedMood(undefined);
       setIntensity(5);
       setNote('');
+      // Refresh recent list
+      loadRecent();
     } catch (error) {
       console.error('Failed to save mood:', error);
       Alert.alert('Error', 'Failed to save mood. Please try again.');
@@ -90,6 +111,30 @@ export default function MoodScreen() {
             </TouchableOpacity>
           </>
         )}
+
+        <View style={styles.historySection}>
+          <Text style={styles.historyTitle}>Recent moods</Text>
+          {loadingHistory ? (
+            <ActivityIndicator color={Colors.primary} />
+          ) : recentEntries.length === 0 ? (
+            <Text style={styles.historyEmpty}>No moods logged yet.</Text>
+          ) : (
+            recentEntries.map((entry) => (
+              <View key={entry.id} style={styles.historyItem}>
+                <View style={styles.historyRow}>
+                  <Text style={styles.historyMood}>{entry.moodType}</Text>
+                  <Text style={styles.historyIntensity}>Intensity {entry.intensity}/10</Text>
+                </View>
+                <Text style={styles.historyDate}>
+                  {new Date(entry.timestamp).toLocaleString()}
+                </Text>
+                {entry.note ? (
+                  <Text style={styles.historyNote}>{entry.note}</Text>
+                ) : null}
+              </View>
+            ))
+          )}
+        </View>
       </View>
     </ScrollView>
   );
@@ -141,5 +186,51 @@ const styles = StyleSheet.create({
     color: Colors.textWhite,
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  historySection: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 30,
+  },
+  historyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 12,
+  },
+  historyEmpty: {
+    color: Colors.textSecondary,
+  },
+  historyItem: {
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: 10,
+  },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  historyMood: {
+    fontSize: 16,
+    color: Colors.text,
+    textTransform: 'capitalize',
+  },
+  historyIntensity: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  historyDate: {
+    marginTop: 4,
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  historyNote: {
+    marginTop: 6,
+    fontSize: 14,
+    color: Colors.text,
   },
 });
