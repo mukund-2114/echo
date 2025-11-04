@@ -10,6 +10,7 @@ import MoodScreen from '@/screens/MoodScreen';
 import TasksScreen from '@/screens/TasksScreen';
 import LearningScreen from '@/screens/LearningScreen';
 import FinanceScreen from '@/screens/FinanceScreen';
+import MotivationScreen from '@/screens/MotivationScreen';
 import MoreScreen from '@/screens/MoreScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -83,6 +84,16 @@ export default function TabNavigator() {
           tabBarLabel: 'Finance',
           tabBarIcon: ({ color, size }) => (
             <TabIcon icon="💰" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Motivation"
+        component={MotivationScreen}
+        options={{
+          tabBarLabel: 'Motivate',
+          tabBarIcon: ({ color, size }) => (
+            <TabIcon icon="✨" color={color} size={size} />
           ),
         }}
       />

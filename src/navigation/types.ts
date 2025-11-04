@@ -10,6 +10,7 @@ export type MainTabParamList = {
   Tasks: undefined;
   Learning: undefined;
   Finance: undefined;
+  Motivation: undefined;
   More: undefined;
 };
 
