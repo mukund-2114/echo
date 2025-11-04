@@ -21,7 +21,7 @@ export default function App() {
         console.log('✅ Database ready');
         
         // Add small delay to show splash
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise<void>((resolve) => setTimeout(() => resolve(), 1000));
         
         setIsReady(true);
       } catch (e) {

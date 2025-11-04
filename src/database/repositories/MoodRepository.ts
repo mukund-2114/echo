@@ -1,18 +1,17 @@
-import * as SQLite from 'expo-sqlite';
 import { v4 as uuidv4 } from 'uuid';
 import { MoodEntry, MoodType } from '@/types';
 import { getDB } from '../index';
 
 export class MoodRepository {
-  private executeSql(sql: string, params: any[] = []): Promise<SQLite.SQLResultSet> {
+  private executeSql(sql: string, params: any[] = []): Promise<any> {
     return new Promise((resolve, reject) => {
-      const db = getDB();
-      db.transaction(tx => {
+      const db: any = getDB();
+      db.transaction((tx: any) => {
         tx.executeSql(
           sql,
           params,
-          (_, result) => resolve(result),
-          (_, error) => {
+          (_: any, result: any) => resolve(result),
+          (_: any, error: any) => {
             reject(error);
             return false;
           }

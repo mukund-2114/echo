@@ -1,1 +1,1 @@
-git commit -m "feat(mood): add mood tracking UI with selector and intensity"
+git commit -m "chore(config): remove expo-sqlite and disable plugins for first-run test"
