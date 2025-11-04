@@ -4,14 +4,17 @@ import { StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { MoodProvider } from './src/context/MoodContext';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import TabNavigator from './src/navigation/TabNavigator';
 import { initDatabase } from './src/database';
 import { Colors } from './src/constants/colors';
-import { initNotifications, scheduleDailyMotivation } from './src/services/notifications';
+import { initNotifications, scheduleDailyMotivation, scheduleTaskRemindersForToday } from './src/services/notifications';
+import { ensureAnonymousAuth } from './src/services/firebase';
 
-export default function App() {
+function AppContent() {
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { scheme } = useTheme();
 
   useEffect(() => {
     async function prepare() {
@@ -22,10 +25,15 @@ export default function App() {
         await initDatabase();
         console.log('✅ Database ready');
         
+        // Ensure Firebase anonymous auth for secure Firestore access
+        await ensureAnonymousAuth();
+        
         // Initialize notifications
         await initNotifications();
         // Schedule daily motivation notification (8am local)
         await scheduleDailyMotivation(8);
+        // Schedule today's task reminders
+        await scheduleTaskRemindersForToday('user-1');
         
         // Add small delay to show splash
         await new Promise<void>((resolve) => setTimeout(() => resolve(), 1000));
@@ -67,7 +75,7 @@ export default function App() {
   return (
     <MoodProvider>
       <NavigationContainer>
-        <StatusBar style="light" />
+        <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
         <TabNavigator />
       </NavigationContainer>
     </MoodProvider>

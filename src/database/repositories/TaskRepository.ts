@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Priority, Task, TaskCategory, TaskStatus } from '@/types';
 import { getDB } from '../index';
+import { pushTaskToCloud, deleteTaskInCloud } from '@/services/taskSync';
 
 export class TaskRepository {
   private executeSql(sql: string, params: any[] = []): Promise<any> {
@@ -66,6 +67,22 @@ export class TaskRepository {
 
     await this.executeSql(sql, params);
 
+    // Push to cloud (best-effort)
+    try {
+      await pushTaskToCloud({
+        id,
+        userId: input.userId,
+        title: input.title,
+        description: input.description,
+        priority,
+        status,
+        category,
+        dueDate: input.dueDate,
+        createdAt,
+        updatedAt,
+      } as Task);
+    } catch {}
+
     return {
       id,
       userId: input.userId,
@@ -102,10 +119,19 @@ export class TaskRepository {
     const status = completed ? TaskStatus.COMPLETED : TaskStatus.PENDING;
     const completedAt = completed ? new Date().getTime() : null;
     const sql = `UPDATE tasks SET status = ?, completed_at = ?, updated_at = ? WHERE id = ?`;
-    await this.executeSql(sql, [status, completedAt, Date.now(), id]);
+    const updatedAt = Date.now();
+    await this.executeSql(sql, [status, completedAt, updatedAt, id]);
+    // Push to cloud
+    try {
+      const t = await this.getById(id);
+      if (t) await pushTaskToCloud(t);
+    } catch {}
   }
 
-  async update(id: string, updates: { title?: string; priority?: Priority; dueDate?: Date | null }): Promise<void> {
+  async update(
+    id: string,
+    updates: { title?: string; priority?: Priority; dueDate?: Date | null; status?: TaskStatus; category?: TaskCategory }
+  ): Promise<void> {
     const fields: string[] = [];
     const params: any[] = [];
 
@@ -121,16 +147,100 @@ export class TaskRepository {
       fields.push('due_date = ?');
       params.push(updates.dueDate ? updates.dueDate.getTime() : null);
     }
+    if (updates.status !== undefined) {
+      fields.push('status = ?');
+      params.push(updates.status);
+    }
+    if (updates.category !== undefined) {
+      fields.push('category = ?');
+      params.push(updates.category);
+    }
     if (fields.length === 0) return;
     fields.push('updated_at = ?');
     params.push(Date.now());
     params.push(id);
     const sql = `UPDATE tasks SET ${fields.join(', ')} WHERE id = ?`;
     await this.executeSql(sql, params);
+    // Push to cloud
+    try {
+      const t = await this.getById(id);
+      if (t) await pushTaskToCloud(t);
+    } catch {}
   }
 
   async delete(id: string): Promise<void> {
     await this.executeSql('DELETE FROM tasks WHERE id = ?', [id]);
+    try {
+      await deleteTaskInCloud(id);
+    } catch {}
+  }
+
+  private async getById(id: string): Promise<Task | null> {
+    const result = await this.executeSql('SELECT * FROM tasks WHERE id = ?', [id]);
+    if (result.rows.length === 0) return null;
+    return this.mapRowToTask(result.rows.item(0));
+  }
+
+  // Insert or update a task coming from cloud, preserving its id and timestamps
+  async upsertFromCloud(task: Task): Promise<void> {
+    const db: any = getDB();
+    const select = await this.executeSql('SELECT id, updated_at FROM tasks WHERE id = ?', [task.id]);
+    const exists = select.rows.length > 0;
+    if (!exists) {
+      const sql = `
+        INSERT INTO tasks (
+          id, user_id, title, description, priority, status, category,
+          due_date, start_time, estimated_duration, energy_required, mood_tag,
+          completed_at, created_at, updated_at, subtasks, tags
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+      await this.executeSql(sql, [
+        task.id,
+        task.userId,
+        task.title,
+        task.description ?? null,
+        task.priority,
+        task.status,
+        task.category,
+        task.dueDate ? task.dueDate.getTime() : null,
+        task.startTime ? task.startTime.getTime() : null,
+        task.estimatedDuration ?? null,
+        task.energyRequired ?? null,
+        task.moodTag ?? null,
+        task.completedAt ? task.completedAt.getTime() : null,
+        task.createdAt.getTime(),
+        task.updatedAt.getTime(),
+        task.subtasks ? JSON.stringify(task.subtasks) : null,
+        task.tags ? JSON.stringify(task.tags) : null,
+      ]);
+      return;
+    }
+    // Update only if remote is newer
+    const localUpdatedAt = select.rows.item(0).updated_at as number;
+    if (task.updatedAt.getTime() <= localUpdatedAt) return;
+    const updateSql = `UPDATE tasks SET 
+      title = ?, description = ?, priority = ?, status = ?, category = ?,
+      due_date = ?, start_time = ?, estimated_duration = ?, energy_required = ?, mood_tag = ?,
+      completed_at = ?, created_at = ?, updated_at = ?, subtasks = ?, tags = ?
+      WHERE id = ?`;
+    await this.executeSql(updateSql, [
+      task.title,
+      task.description ?? null,
+      task.priority,
+      task.status,
+      task.category,
+      task.dueDate ? task.dueDate.getTime() : null,
+      task.startTime ? task.startTime.getTime() : null,
+      task.estimatedDuration ?? null,
+      task.energyRequired ?? null,
+      task.moodTag ?? null,
+      task.completedAt ? task.completedAt.getTime() : null,
+      task.createdAt.getTime(),
+      task.updatedAt.getTime(),
+      task.subtasks ? JSON.stringify(task.subtasks) : null,
+      task.tags ? JSON.stringify(task.tags) : null,
+      task.id,
+    ]);
   }
 
   private mapRowToTask(row: any): Task {
