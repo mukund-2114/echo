@@ -105,6 +105,30 @@ export class TaskRepository {
     await this.executeSql(sql, [status, completedAt, Date.now(), id]);
   }
 
+  async update(id: string, updates: { title?: string; priority?: Priority; dueDate?: Date | null }): Promise<void> {
+    const fields: string[] = [];
+    const params: any[] = [];
+
+    if (updates.title !== undefined) {
+      fields.push('title = ?');
+      params.push(updates.title);
+    }
+    if (updates.priority !== undefined) {
+      fields.push('priority = ?');
+      params.push(updates.priority);
+    }
+    if (updates.dueDate !== undefined) {
+      fields.push('due_date = ?');
+      params.push(updates.dueDate ? updates.dueDate.getTime() : null);
+    }
+    if (fields.length === 0) return;
+    fields.push('updated_at = ?');
+    params.push(Date.now());
+    params.push(id);
+    const sql = `UPDATE tasks SET ${fields.join(', ')} WHERE id = ?`;
+    await this.executeSql(sql, params);
+  }
+
   async delete(id: string): Promise<void> {
     await this.executeSql('DELETE FROM tasks WHERE id = ?', [id]);
   }
