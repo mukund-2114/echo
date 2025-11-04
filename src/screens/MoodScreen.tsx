@@ -9,6 +9,8 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { Dimensions } from 'react-native';
+import { LineChart } from 'react-native-chart-kit';
 import { Colors } from '@/constants/colors';
 import { MoodEntry, MoodType } from '@/types';
 import MoodSelector from '@/components/mood/MoodSelector';
@@ -135,6 +137,52 @@ export default function MoodScreen() {
             ))
           )}
         </View>
+
+        {recentEntries.length > 0 && (
+          <View style={styles.chartSection}>
+            <Text style={styles.historyTitle}>Last 7 entries</Text>
+            <LineChart
+              data={{
+                labels: recentEntries
+                  .slice(0, 7)
+                  .reverse()
+                  .map((e) => new Date(e.timestamp).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })),
+                datasets: [
+                  {
+                    data: recentEntries
+                      .slice(0, 7)
+                      .reverse()
+                      .map((e) => e.intensity),
+                    color: () => Colors.primary,
+                    strokeWidth: 2,
+                  },
+                ],
+              }}
+              width={Dimensions.get('window').width - 40}
+              height={180}
+              chartConfig={{
+                backgroundGradientFrom: Colors.surface,
+                backgroundGradientTo: Colors.surface,
+                decimalPlaces: 0,
+                color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                labelColor: () => Colors.textSecondary,
+                propsForDots: {
+                  r: '3',
+                  strokeWidth: '1',
+                  stroke: Colors.primary,
+                },
+                propsForBackgroundLines: {
+                  stroke: Colors.border,
+                },
+              }}
+              bezier
+              style={styles.chart}
+              withInnerLines
+              fromZero
+              yAxisSuffix=""
+            />
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -232,5 +280,14 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 14,
     color: Colors.text,
+  },
+  chartSection: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 30,
+  },
+  chart: {
+    marginVertical: 8,
+    borderRadius: 12,
   },
 });
