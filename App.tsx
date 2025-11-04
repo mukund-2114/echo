@@ -7,6 +7,7 @@ import { MoodProvider } from './src/context/MoodContext';
 import TabNavigator from './src/navigation/TabNavigator';
 import { initDatabase } from './src/database';
 import { Colors } from './src/constants/colors';
+import { initNotifications, scheduleDailyMotivation } from './src/services/notifications';
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
@@ -20,6 +21,11 @@ export default function App() {
         // Initialize database
         await initDatabase();
         console.log('✅ Database ready');
+        
+        // Initialize notifications
+        await initNotifications();
+        // Schedule daily motivation notification (8am local)
+        await scheduleDailyMotivation(8);
         
         // Add small delay to show splash
         await new Promise<void>((resolve) => setTimeout(() => resolve(), 1000));
