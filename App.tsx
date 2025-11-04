@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
+import { MoodProvider } from './src/context/MoodContext';
 import TabNavigator from './src/navigation/TabNavigator';
 import { initDatabase } from './src/database';
 import { Colors } from './src/constants/colors';
@@ -58,10 +59,12 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
-      <StatusBar style="light" />
-      <TabNavigator />
-    </NavigationContainer>
+    <MoodProvider>
+      <NavigationContainer>
+        <StatusBar style="light" />
+        <TabNavigator />
+      </NavigationContainer>
+    </MoodProvider>
   );
 }
 
