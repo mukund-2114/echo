@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Dimensions } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
@@ -24,6 +25,7 @@ export default function MoodScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [recentEntries, setRecentEntries] = useState<MoodEntry[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadRecent = async () => {
     try {
@@ -40,6 +42,54 @@ export default function MoodScreen() {
   useEffect(() => {
     loadRecent();
   }, []);
+
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await loadRecent();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const confirmDelete = (id: string) => {
+    Alert.alert('Delete entry', 'Are you sure you want to delete this mood entry?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await moodRepository.delete(id);
+            await loadRecent();
+          } catch (e) {
+            console.error('Delete failed:', e);
+            Alert.alert('Error', 'Could not delete the entry.');
+          }
+        },
+      },
+    ]);
+  };
+
+  // Prepare 7-day aggregated chart data (average intensity per day)
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+  const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  const aggregates = last7Days.map((day) => {
+    const next = new Date(day);
+    next.setDate(day.getDate() + 1);
+    const dayEntries = recentEntries.filter((e) => {
+      const t = new Date(e.timestamp);
+      return t >= day && t < next;
+    });
+    if (dayEntries.length === 0) return { label: `${day.getMonth() + 1}/${day.getDate()}`, avg: 0 };
+    const avg = dayEntries.reduce((s, e) => s + e.intensity, 0) / dayEntries.length;
+    return { label: `${day.getMonth() + 1}/${day.getDate()}`, avg: Math.round(avg * 10) / 10 };
+  });
 
   const handleSave = async () => {
     if (!selectedMood) {
@@ -74,7 +124,10 @@ export default function MoodScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+    >
       <View style={styles.content}>
         <MoodSelector
           selectedMood={selectedMood}
@@ -133,6 +186,11 @@ export default function MoodScreen() {
                 {entry.note ? (
                   <Text style={styles.historyNote}>{entry.note}</Text>
                 ) : null}
+                <View style={styles.historyActions}>
+                  <TouchableOpacity onPress={() => confirmDelete(entry.id)}>
+                    <Text style={styles.deleteText}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             ))
           )}
@@ -143,16 +201,10 @@ export default function MoodScreen() {
             <Text style={styles.historyTitle}>Last 7 entries</Text>
             <LineChart
               data={{
-                labels: recentEntries
-                  .slice(0, 7)
-                  .reverse()
-                  .map((e) => new Date(e.timestamp).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })),
+                labels: aggregates.map((a) => a.label),
                 datasets: [
                   {
-                    data: recentEntries
-                      .slice(0, 7)
-                      .reverse()
-                      .map((e) => e.intensity),
+                    data: aggregates.map((a) => a.avg),
                     color: () => Colors.primary,
                     strokeWidth: 2,
                   },
@@ -280,6 +332,15 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 14,
     color: Colors.text,
+  },
+  historyActions: {
+    marginTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  deleteText: {
+    color: Colors.error,
+    fontWeight: '600',
   },
   chartSection: {
     paddingHorizontal: 20,
