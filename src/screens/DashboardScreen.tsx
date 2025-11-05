@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/constants/colors';
 import { useMood } from '@/context/MoodContext';
@@ -9,6 +9,7 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDailyCoding, getDailyQuote, getDailyWord } from '@/utils/daily';
 import type { Task } from '@/types';
+import sleepService from '@/services/sleepService';
 
 export default function DashboardScreen() {
   const { loading, latest, average7 } = useMood();
@@ -18,6 +19,31 @@ export default function DashboardScreen() {
   const [topTasks, setTopTasks] = useState<Task[]>([]);
   const [note, setNote] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+  const [sleepLoading, setSleepLoading] = useState(false);
+  const [sleepActive, setSleepActive] = useState(false);
+  const [lastSleepMinutes, setLastSleepMinutes] = useState<number | null>(null);
+  const [lastEndedSessionId, setLastEndedSessionId] = useState<string | null>(null);
+
+  const formatDuration = (minutes: number): string => {
+    const hrs = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hrs === 0) return `${mins}m`;
+    if (mins === 0) return `${hrs}h`;
+    return `${hrs}h ${mins}m`;
+  };
+
+  const gradientByTime = (): string[] => {
+    const h = new Date().getHours();
+    // morning 5-11, afternoon 11-16, evening 16-20, night 20-5
+    if (h >= 5 && h < 11) {
+      return ['#FFEDD5', '#FDBA74']; // warm sunrise
+    } else if (h >= 11 && h < 16) {
+      return ['#E0F2FE', '#93C5FD']; // bright midday blue
+    } else if (h >= 16 && h < 20) {
+      return ['#FDE68A', '#FCA5A5']; // sunset tones
+    }
+    return ['#0F172A', '#1E293B']; // night dark blues
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -36,6 +62,18 @@ export default function DashboardScreen() {
 
         const saved = await AsyncStorage.getItem('journal.quickNote');
         if (saved != null) setNote(saved);
+
+        // Load sleep status and last duration
+        try {
+          const active = await sleepService.getActiveSleepSession('user-1');
+          setSleepActive(!!active);
+          const history = await sleepService.getSleepHistory('user-1', 1);
+          if (history.length > 0 && history[0].durationMinutes != null) {
+            setLastSleepMinutes(history[0].durationMinutes);
+          }
+        } catch {
+          // ignore dashboard sleep load errors
+        }
       } catch (e) {
         // Swallow for dashboard
       }
@@ -51,8 +89,8 @@ export default function DashboardScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={[Colors.primary, Colors.secondary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+      <LinearGradient colors={gradientByTime()} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
         <Text style={styles.heroTitle}>{greet()}</Text>
         <Text style={styles.heroSubtitle}>{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</Text>
 
@@ -89,6 +127,77 @@ export default function DashboardScreen() {
               7-day avg: <Text style={styles.cardValue}>{average7 || 0}/10</Text>
             </Text>
           </>
+        )}
+      </Card>
+
+      <Card title="Sleep">
+        <View style={styles.sleepRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.cardRow}>
+              Status: <Text style={styles.cardValue}>{sleepActive ? 'Sleeping' : 'Awake'}</Text>
+            </Text>
+            <Text style={styles.cardRow}>
+              Last sleep: <Text style={styles.cardValue}>{
+                lastSleepMinutes != null ? formatDuration(lastSleepMinutes) : '—'
+              }</Text>
+            </Text>
+          </View>
+          {sleepActive ? (
+            <TouchableOpacity
+              style={[styles.sleepBtn, sleepLoading && { opacity: 0.6 }]}
+              onPress={async () => {
+                if (sleepLoading) return;
+                setSleepLoading(true);
+                try {
+                  const ended = await sleepService.endSleepSession('user-1');
+                  setSleepActive(false);
+                  if (ended.durationMinutes != null) setLastSleepMinutes(ended.durationMinutes);
+                  setLastEndedSessionId(ended.id);
+                } catch {}
+                setSleepLoading(false);
+              }}
+              disabled={sleepLoading}
+            >
+              <Text style={styles.sleepBtnText}>{sleepLoading ? 'Ending…' : 'I woke up'}</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.sleepBtn, sleepLoading && { opacity: 0.6 }]}
+              onPress={async () => {
+                if (sleepLoading) return;
+                setSleepLoading(true);
+                try {
+                  await sleepService.startSleepSession('user-1');
+                  setSleepActive(true);
+                } catch {}
+                setSleepLoading(false);
+              }}
+              disabled={sleepLoading}
+            >
+              <Text style={styles.sleepBtnText}>{sleepLoading ? 'Starting…' : "I'm sleeping"}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Quick quality rating after waking */}
+        {lastEndedSessionId && !sleepActive && (
+          <View style={styles.qualityRow}>
+            <Text style={[styles.cardRow, { marginRight: 8 }]}>Rate last sleep:</Text>
+            {[1, 2, 3, 4, 5].map((r) => (
+              <TouchableOpacity
+                key={r}
+                style={[styles.qualityChip]}
+                onPress={async () => {
+                  try {
+                    await sleepService.setQuality(lastEndedSessionId, r);
+                    setLastEndedSessionId(null);
+                  } catch {}
+                }}
+              >
+                <Text style={styles.qualityChipText}>{r}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         )}
       </Card>
 
@@ -140,7 +249,7 @@ export default function DashboardScreen() {
         <Text style={styles.cardRow}>Tip: <Text style={styles.cardValue}>{getDailyCoding().tip}</Text></Text>
         <Text style={[styles.cardRow, { marginTop: 10 }]}>Quote: <Text style={styles.cardValue}>{getDailyQuote()}</Text></Text>
       </Card>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -148,6 +257,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  scrollContent: {
+    paddingBottom: 24,
   },
   hero: {
     paddingTop: 50,
@@ -222,6 +334,38 @@ const styles = StyleSheet.create({
   cardValue: {
     color: Colors.text,
     fontWeight: '600',
+  },
+  sleepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sleepBtn: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+  },
+  sleepBtnText: {
+    color: Colors.textWhite,
+    fontWeight: '700',
+  },
+  qualityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  qualityChip: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    marginHorizontal: 4,
+  },
+  qualityChipText: {
+    color: Colors.text,
+    fontWeight: '700',
   },
   topTaskRow: {
     flexDirection: 'row',

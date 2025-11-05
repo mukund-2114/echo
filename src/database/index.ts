@@ -32,6 +32,10 @@ async function createSchema(): Promise<void> {
     CREATE_TABLES.ai_conversations,
     CREATE_TABLES.notifications,
     CREATE_TABLES.portfolio_checks,
+    CREATE_TABLES.sleep_sessions,
+    CREATE_TABLES.vocabulary_words,
+    CREATE_TABLES.coding_prompts,
+    CREATE_TABLES.journal_entries,
   ];
   const indexes = [
     CREATE_INDEXES.mood_entries_user_timestamp,
@@ -42,6 +46,10 @@ async function createSchema(): Promise<void> {
     CREATE_INDEXES.finance_transactions_user,
     CREATE_INDEXES.ai_conversations_user,
     CREATE_INDEXES.notifications_user_scheduled,
+    CREATE_INDEXES.sleep_sessions_user_time,
+    CREATE_INDEXES.vocabulary_learned,
+    CREATE_INDEXES.coding_prompts_difficulty,
+    CREATE_INDEXES.journal_entries_user_date,
   ];
   await execStatements([...tables, ...indexes]);
 }

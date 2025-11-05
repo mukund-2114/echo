@@ -1,30 +1,56 @@
-import React from 'react';
-import { View, Text, StyleSheet, ViewStyle } from 'react-native';
-import { Colors } from '@/constants/colors';
+import React, { useRef } from 'react';
+import { View, Text, StyleSheet, ViewStyle, TouchableWithoutFeedback, Animated } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
 
 interface CardProps {
   title?: string;
   children: React.ReactNode;
   style?: ViewStyle;
+  onPress?: () => void;
 }
 
-export default function Card({ title, children, style }: CardProps) {
-  return (
-    <View style={[styles.card, style]}>
-      {title ? <Text style={styles.title}>{title}</Text> : null}
+export default function Card({ title, children, style, onPress }: CardProps) {
+  const { colors } = useTheme();
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const content = (
+    <Animated.View
+      style={[
+        styles.card,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+          shadowColor: '#000',
+          transform: [{ scale }],
+        },
+        style,
+      ]}
+    >
+      {title ? <Text style={[styles.title, { color: colors.text }]}>{title}</Text> : null}
       {children}
-    </View>
+    </Animated.View>
   );
+
+  if (onPress) {
+    return (
+      <TouchableWithoutFeedback
+        onPressIn={() => Animated.spring(scale, { toValue: 0.98, useNativeDriver: true }).start()}
+        onPressOut={() => Animated.spring(scale, { toValue: 1, friction: 5, useNativeDriver: true }).start()}
+        onPress={onPress}
+      >
+        {content}
+      </TouchableWithoutFeedback>
+    );
+  }
+
+  return content;
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
     padding: 16,
-    shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
@@ -34,7 +60,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: Colors.text,
     marginBottom: 10,
   },
 });

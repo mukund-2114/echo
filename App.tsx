@@ -1,4 +1,5 @@
 import 'react-native-gesture-handler';
+import 'react-native-reanimated';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
@@ -10,6 +11,7 @@ import { initDatabase } from './src/database';
 import { Colors } from './src/constants/colors';
 import { initNotifications, scheduleDailyMotivation, scheduleTaskRemindersForToday } from './src/services/notifications';
 import { ensureAnonymousAuth } from './src/services/firebase';
+import { pullTasksFromCloudAndMerge } from './src/services/taskSync';
 
 function AppContent() {
   const [isReady, setIsReady] = useState(false);
@@ -25,8 +27,14 @@ function AppContent() {
         await initDatabase();
         console.log('✅ Database ready');
         
-        // Ensure Firebase anonymous auth for secure Firestore access
-        await ensureAnonymousAuth();
+        // Ensure Firebase anonymous auth for secure Firestore access (optional)
+        try {
+          await ensureAnonymousAuth();
+          // Pull tasks from cloud and merge into local
+          await pullTasksFromCloudAndMerge('user-1');
+        } catch (authErr) {
+          console.warn('[Cloud Sync] Disabled: auth not available or misconfigured:', authErr);
+        }
         
         // Initialize notifications
         await initNotifications();
@@ -121,3 +129,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
+// Export default App wrapped with ThemeProvider
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  );
+}

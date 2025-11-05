@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
+import { onAuthStateChanged, signInAnonymously, getAuth, type Auth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 // Provided by user
@@ -13,7 +13,29 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+
+// Initialize Auth for React Native: prefer AsyncStorage persistence, fallback to memory
+let authInst: Auth;
+try {
+  // Try React Native specific auth initializer first
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const rnAuth = require('firebase/auth/react-native');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const RNAsyncStorage = require('@react-native-async-storage/async-storage').default;
+  authInst = rnAuth.initializeAuth(app, {
+    persistence: rnAuth.getReactNativePersistence(RNAsyncStorage),
+  });
+} catch (e) {
+  try {
+    // Fallback to generic auth module
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const webAuth = require('firebase/auth');
+    authInst = getAuth(app);
+  } catch {
+    authInst = getAuth(app);
+  }
+}
+export const auth: Auth = authInst;
 export const db = getFirestore(app);
 
 export async function ensureAnonymousAuth(): Promise<string> {

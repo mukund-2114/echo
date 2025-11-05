@@ -183,6 +183,70 @@ export const CREATE_TABLES = {
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
   `,
+
+  // Sleep sessions table (for sleep tracking)
+  sleep_sessions: `
+    CREATE TABLE IF NOT EXISTS sleep_sessions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      sleep_time INTEGER NOT NULL,
+      wake_time INTEGER,
+      duration_minutes INTEGER,
+      quality_rating INTEGER CHECK(quality_rating >= 1 AND quality_rating <= 5),
+      notes TEXT,
+      mood_before_sleep TEXT,
+      mood_after_wake TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+  `,
+
+  // Vocabulary words table (for daily vocabulary feature)
+  vocabulary_words: `
+    CREATE TABLE IF NOT EXISTS vocabulary_words (
+      id TEXT PRIMARY KEY,
+      word TEXT NOT NULL UNIQUE,
+      definition TEXT NOT NULL,
+      example_sentence TEXT,
+      difficulty_level INTEGER DEFAULT 1 CHECK(difficulty_level >= 1 AND difficulty_level <= 3),
+      learned INTEGER DEFAULT 0,
+      learned_date INTEGER,
+      review_count INTEGER DEFAULT 0,
+      created_at INTEGER NOT NULL
+    );
+  `,
+
+  // Coding prompts table (for coding practice feature)
+  coding_prompts: `
+    CREATE TABLE IF NOT EXISTS coding_prompts (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      difficulty TEXT CHECK(difficulty IN ('easy', 'medium', 'hard')),
+      category TEXT DEFAULT 'general',
+      solution_notes TEXT,
+      completed INTEGER DEFAULT 0,
+      completed_date INTEGER,
+      time_spent_minutes INTEGER,
+      created_at INTEGER NOT NULL
+    );
+  `,
+
+  // Journal entries table (enhanced for Phase 1)
+  journal_entries: `
+    CREATE TABLE IF NOT EXISTS journal_entries (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      content TEXT NOT NULL,
+      mood_emoji TEXT,
+      mood_rating INTEGER CHECK(mood_rating >= 1 AND mood_rating <= 5),
+      tags TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+  `,
 };
 
 // Indexes for better query performance
@@ -226,6 +290,26 @@ export const CREATE_INDEXES = {
     CREATE INDEX IF NOT EXISTS idx_notifications_user_scheduled 
     ON notifications(user_id, scheduled_time);
   `,
+  
+  sleep_sessions_user_time: `
+    CREATE INDEX IF NOT EXISTS idx_sleep_sessions_user_time 
+    ON sleep_sessions(user_id, sleep_time DESC);
+  `,
+  
+  vocabulary_learned: `
+    CREATE INDEX IF NOT EXISTS idx_vocabulary_learned 
+    ON vocabulary_words(learned, difficulty_level);
+  `,
+  
+  coding_prompts_difficulty: `
+    CREATE INDEX IF NOT EXISTS idx_coding_prompts_difficulty 
+    ON coding_prompts(difficulty, completed);
+  `,
+  
+  journal_entries_user_date: `
+    CREATE INDEX IF NOT EXISTS idx_journal_entries_user_date 
+    ON journal_entries(user_id, created_at DESC);
+  `,
 };
 
 // Drop tables (for development/testing)
@@ -241,4 +325,8 @@ export const DROP_TABLES = {
   ai_conversations: 'DROP TABLE IF EXISTS ai_conversations;',
   notifications: 'DROP TABLE IF EXISTS notifications;',
   portfolio_checks: 'DROP TABLE IF EXISTS portfolio_checks;',
+  sleep_sessions: 'DROP TABLE IF EXISTS sleep_sessions;',
+  vocabulary_words: 'DROP TABLE IF EXISTS vocabulary_words;',
+  coding_prompts: 'DROP TABLE IF EXISTS coding_prompts;',
+  journal_entries: 'DROP TABLE IF EXISTS journal_entries;',
 };
