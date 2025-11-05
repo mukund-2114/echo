@@ -13,13 +13,20 @@ import FinanceScreen from '@/screens/FinanceScreen';
 import MotivationScreen from '@/screens/MotivationScreen';
 import MoreScreen from '@/screens/MoreScreen';
 import SleepHistoryScreen from '@/screens/SleepHistoryScreen';
+import SettingsScreen from '@/screens/SettingsScreen';
+import SectionsScreen from '@/screens/SectionsScreen';
+import JournalScreen from '@/screens/JournalScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export default function TabNavigator() {
   return (
     <Tab.Navigator
+      initialRouteName="Dashboard"
       screenOptions={{
+        headerShown: false,
+        tabBarShowLabel: true,
+        tabBarHideOnKeyboard: false,
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.textSecondary,
         tabBarStyle: {
@@ -29,15 +36,14 @@ export default function TabNavigator() {
           paddingTop: 5,
           height: 60,
         },
-        headerStyle: {
-          backgroundColor: Colors.primary,
-        },
-        headerTintColor: Colors.textWhite,
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
       }}
     >
+      {/* Sections screen kept registered but hidden from tab bar */}
+      <Tab.Screen
+        name="Sections"
+        component={SectionsScreen}
+        options={{ tabBarButton: () => null }}
+      />
       <Tab.Screen
         name="Dashboard"
         component={DashboardScreen}
@@ -46,6 +52,7 @@ export default function TabNavigator() {
           tabBarIcon: ({ color, size }) => (
             <TabIcon icon="📊" color={color} size={size} />
           ),
+          // Visible
         }}
       />
       <Tab.Screen
@@ -56,6 +63,7 @@ export default function TabNavigator() {
           tabBarIcon: ({ color, size }) => (
             <TabIcon icon="🎭" color={color} size={size} />
           ),
+          tabBarButton: () => null,
         }}
       />
       <Tab.Screen
@@ -66,6 +74,7 @@ export default function TabNavigator() {
           tabBarIcon: ({ color, size }) => (
             <TabIcon icon="📅" color={color} size={size} />
           ),
+          // Visible
         }}
       />
       <Tab.Screen
@@ -76,6 +85,7 @@ export default function TabNavigator() {
           tabBarIcon: ({ color, size }) => (
             <TabIcon icon="📚" color={color} size={size} />
           ),
+          // Visible
         }}
       />
       <Tab.Screen
@@ -86,6 +96,7 @@ export default function TabNavigator() {
           tabBarIcon: ({ color, size }) => (
             <TabIcon icon="💰" color={color} size={size} />
           ),
+          tabBarButton: () => null,
         }}
       />
       <Tab.Screen
@@ -96,6 +107,7 @@ export default function TabNavigator() {
           tabBarIcon: ({ color, size }) => (
             <TabIcon icon="😴" color={color} size={size} />
           ),
+          // Visible
         }}
       />
       <Tab.Screen
@@ -106,16 +118,29 @@ export default function TabNavigator() {
           tabBarIcon: ({ color, size }) => (
             <TabIcon icon="✨" color={color} size={size} />
           ),
+          tabBarButton: () => null,
         }}
       />
       <Tab.Screen
-        name="More"
-        component={MoreScreen}
+        name="Journal"
+        component={JournalScreen}
         options={{
-          tabBarLabel: 'More',
+          tabBarLabel: 'Journal',
           tabBarIcon: ({ color, size }) => (
-            <TabIcon icon="⚙️" color={color} size={size} />
+            <TabIcon icon="📝" color={color} size={size} />
           ),
+          tabBarButton: () => null,
+        }}
+      />
+      <Tab.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{
+          tabBarLabel: 'Settings',
+          tabBarIcon: ({ color, size }) => (
+            <TabIcon icon="🛠️" color={color} size={size} />
+          ),
+          // Keep Settings visible in tab bar for quick access
         }}
       />
     </Tab.Navigator>

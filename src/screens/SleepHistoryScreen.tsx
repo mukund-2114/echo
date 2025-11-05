@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, Dimensions } from 'react-native';
 import { Colors } from '@/constants/colors';
 import Card from '@/components/ui/Card';
 import sleepService, { SleepSession } from '@/services/sleepService';
+import { BarChart } from 'react-native-chart-kit';
 
 function formatDate(ts: number) {
   const d = new Date(ts);
@@ -21,6 +22,8 @@ function formatDuration(mins?: number) {
 export default function SleepHistoryScreen() {
   const [sessions, setSessions] = useState<SleepSession[]>([]);
   const [weeklyAvg, setWeeklyAvg] = useState(0);
+  const screenPadding = 20;
+  const chartWidth = Dimensions.get('window').width - screenPadding * 2 - 8; // card padding margin
 
   useEffect(() => {
     const load = async () => {
@@ -34,6 +37,27 @@ export default function SleepHistoryScreen() {
     load();
   }, []);
 
+  // Build last 7 days dataset (hours)
+  const weeklyData = useMemo(() => {
+    const now = new Date();
+    const days: { label: string; totalMins: number }[] = [];
+    // Start from 6 days ago to today
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(now.getDate() - i);
+      const key = d.toDateString();
+      const label = d.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2);
+      const totalMins = sessions
+        .filter(s => s.wakeTime && new Date(s.wakeTime).toDateString() === key)
+        .reduce((acc, s) => acc + (s.durationMinutes || 0), 0);
+      days.push({ label, totalMins });
+    }
+    return {
+      labels: days.map(d => d.label),
+      data: days.map(d => Math.round((d.totalMins / 60) * 10) / 10), // hours with 0.1 precision
+    };
+  }, [sessions]);
+
   const goodSleep = (s: SleepSession) => {
     const enough = (s.durationMinutes ?? 0) >= 7 * 60;
     const quality = (s.qualityRating ?? 0) >= 4;
@@ -42,11 +66,33 @@ export default function SleepHistoryScreen() {
 
   return (
     <View style={styles.container}>
-      <Card title="This Week">
+      <Card title="😴 This Week">
         <Text style={styles.row}>Weekly average: <Text style={styles.value}>{formatDuration(weeklyAvg)}</Text></Text>
+        <View style={{ marginTop: 12 }}>
+          <BarChart
+            data={{ labels: weeklyData.labels, datasets: [{ data: weeklyData.data }] }}
+            width={chartWidth}
+            height={180}
+            fromZero
+            yAxisLabel=""
+            yAxisSuffix="h"
+            chartConfig={{
+              backgroundGradientFrom: Colors.surface,
+              backgroundGradientTo: Colors.surface,
+              color: (o=1) => `rgba(59,130,246,${o})`,
+              labelColor: () => Colors.textSecondary,
+              decimalPlaces: 1,
+              propsForBackgroundLines: { stroke: Colors.border },
+              barPercentage: 0.6,
+            }}
+            style={{ borderRadius: 12 }}
+            withInnerLines
+            withHorizontalLabels
+          />
+        </View>
       </Card>
 
-      <Card title="Recent sessions">
+      <Card title="📜 Recent sessions">
         {sessions.length === 0 ? (
           <Text style={styles.row}>No sessions yet.</Text>
         ) : (

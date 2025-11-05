@@ -13,12 +13,23 @@ export async function initNotifications() {
       lightColor: '#FF231F7C',
     });
   }
-
   // Request permissions
   const settings = await Notifications.getPermissionsAsync();
   if (!settings.granted) {
     await Notifications.requestPermissionsAsync();
   }
+}
+
+// Schedule a single reminder for a task at an exact local date/time
+export async function scheduleTaskReminder(task: Task, when: Date) {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Task reminder',
+      body: task.title,
+      sound: Platform.OS === 'android' ? undefined : 'default',
+    },
+    trigger: { date: when },
+  });
 }
 
 export async function scheduleDailyMotivation(hourLocal: number = 8) {

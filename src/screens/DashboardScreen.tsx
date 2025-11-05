@@ -23,6 +23,7 @@ export default function DashboardScreen() {
   const [sleepActive, setSleepActive] = useState(false);
   const [lastSleepMinutes, setLastSleepMinutes] = useState<number | null>(null);
   const [lastEndedSessionId, setLastEndedSessionId] = useState<string | null>(null);
+  const [lastSleepQuality, setLastSleepQuality] = useState<number | null>(null);
 
   const formatDuration = (minutes: number): string => {
     const hrs = Math.floor(minutes / 60);
@@ -68,8 +69,9 @@ export default function DashboardScreen() {
           const active = await sleepService.getActiveSleepSession('user-1');
           setSleepActive(!!active);
           const history = await sleepService.getSleepHistory('user-1', 1);
-          if (history.length > 0 && history[0].durationMinutes != null) {
-            setLastSleepMinutes(history[0].durationMinutes);
+          if (history.length > 0) {
+            if (history[0].durationMinutes != null) setLastSleepMinutes(history[0].durationMinutes);
+            if (history[0].qualityRating != null) setLastSleepQuality(history[0].qualityRating);
           }
         } catch {
           // ignore dashboard sleep load errors
@@ -115,7 +117,7 @@ export default function DashboardScreen() {
         </View>
       </LinearGradient>
 
-      <Card title="Mood summary">
+      <Card title="😊 Mood summary">
         {loading ? (
           <ActivityIndicator color={Colors.primary} />
         ) : (
@@ -130,7 +132,7 @@ export default function DashboardScreen() {
         )}
       </Card>
 
-      <Card title="Sleep">
+      <Card title="😴 Sleep">
         <View style={styles.sleepRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.cardRow}>
@@ -141,6 +143,11 @@ export default function DashboardScreen() {
                 lastSleepMinutes != null ? formatDuration(lastSleepMinutes) : '—'
               }</Text>
             </Text>
+            {lastSleepMinutes != null && lastSleepQuality != null && (lastSleepMinutes >= 420 && lastSleepQuality >= 4) ? (
+              <View style={styles.badgeRow}>
+                <Text style={styles.goodBadge}>Good</Text>
+              </View>
+            ) : null}
           </View>
           {sleepActive ? (
             <TouchableOpacity
@@ -201,7 +208,7 @@ export default function DashboardScreen() {
         )}
       </Card>
 
-      <Card title="Top 3 tasks for today">
+      <Card title="✅ Top 3 tasks for today">
         {topTasks.length === 0 ? (
           <Text style={styles.cardRow}>No pending tasks. Add one from Tasks.</Text>
         ) : (
@@ -217,7 +224,7 @@ export default function DashboardScreen() {
         )}
       </Card>
 
-      <Card title="Quick journal note">
+      <Card title="📝 Quick journal note">
         <TextInput
           style={styles.noteInput}
           placeholder="Jot down what's on your mind..."
@@ -242,7 +249,7 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </Card>
 
-      <Card title="Daily learning & motivation">
+      <Card title="📚 Daily learning & motivation">
         <Text style={styles.cardRow}>Word: <Text style={styles.cardValue}>{getDailyWord().word}</Text></Text>
         <Text style={styles.cardRow}>Meaning: <Text style={styles.cardValue}>{getDailyWord().meaning}</Text></Text>
         <Text style={styles.cardRow}>Coding: <Text style={styles.cardValue}>{getDailyCoding().title}</Text></Text>

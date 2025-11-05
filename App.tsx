@@ -12,6 +12,7 @@ import { Colors } from './src/constants/colors';
 import { initNotifications, scheduleDailyMotivation, scheduleTaskRemindersForToday } from './src/services/notifications';
 import { ensureAnonymousAuth } from './src/services/firebase';
 import { pullTasksFromCloudAndMerge } from './src/services/taskSync';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 function AppContent() {
   const [isReady, setIsReady] = useState(false);
@@ -27,21 +28,30 @@ function AppContent() {
         await initDatabase();
         console.log('✅ Database ready');
         
-        // Ensure Firebase anonymous auth for secure Firestore access (optional)
-        try {
-          await ensureAnonymousAuth();
-          // Pull tasks from cloud and merge into local
-          await pullTasksFromCloudAndMerge('user-1');
-        } catch (authErr) {
-          console.warn('[Cloud Sync] Disabled: auth not available or misconfigured:', authErr);
+        // Read settings toggles
+        const notificationsEnabled = (await AsyncStorage.getItem('settings.notificationsEnabled')) === '1';
+        const backupEnabled = (await AsyncStorage.getItem('settings.backupEnabled')) === '1';
+
+        // Cloud backup (optional)
+        if (backupEnabled) {
+          try {
+            await ensureAnonymousAuth();
+            await pullTasksFromCloudAndMerge('user-1');
+          } catch (authErr) {
+            console.warn('[Cloud Sync] Disabled or unavailable:', authErr);
+          }
+        } else {
+          console.log('[Cloud Sync] Skipped (backup disabled)');
         }
-        
-        // Initialize notifications
-        await initNotifications();
-        // Schedule daily motivation notification (8am local)
-        await scheduleDailyMotivation(8);
-        // Schedule today's task reminders
-        await scheduleTaskRemindersForToday('user-1');
+
+        // Notifications (optional)
+        if (notificationsEnabled) {
+          await initNotifications();
+          await scheduleDailyMotivation(8);
+          await scheduleTaskRemindersForToday('user-1');
+        } else {
+          console.log('[Notifications] Skipped (disabled)');
+        }
         
         // Add small delay to show splash
         await new Promise<void>((resolve) => setTimeout(() => resolve(), 1000));

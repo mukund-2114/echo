@@ -5,6 +5,7 @@ export type RootStackParamList = {
 };
 
 export type MainTabParamList = {
+  Sections: undefined;
   Dashboard: undefined;
   Mood: undefined;
   Tasks: undefined;
@@ -12,7 +13,9 @@ export type MainTabParamList = {
   Finance: undefined;
   Motivation: undefined;
   More: undefined;
+  Journal: undefined;
   Sleep: undefined;
+  Settings: undefined;
 };
 
 export type MoodStackParamList = {

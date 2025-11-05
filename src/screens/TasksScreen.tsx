@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl } from 'react-native';
 import { Colors } from '@/constants/colors';
+import { scheduleTaskReminder } from '@/services/notifications';
 import { Priority, Task } from '@/types';
 import { taskRepository } from '@/database/repositories/TaskRepository';
 
@@ -61,7 +62,21 @@ export default function TasksScreen() {
         dueDate.setHours(23, 59, 59, 999);
       }
 
-      await taskRepository.create({ userId: DEFAULT_USER_ID, title: trimmed, priority, dueDate });
+      const created = await taskRepository.create({ userId: DEFAULT_USER_ID, title: trimmed, priority, dueDate });
+      // Schedule a reminder if a due date exists
+      if (dueDate) {
+        let trigger = new Date(dueDate);
+        if (trigger.getHours() !== 0 || trigger.getMinutes() !== 0) {
+          // If a time component exists, remind 30 minutes before
+          trigger = new Date(dueDate);
+          trigger.setMinutes(Math.max(0, trigger.getMinutes() - 30));
+        } else {
+          // Otherwise remind at 10:00 AM of due date
+          trigger = new Date(dueDate);
+          trigger.setHours(10, 0, 0, 0);
+        }
+        try { await scheduleTaskReminder(created, trigger); } catch {}
+      }
       setTitle('');
       setPriority(Priority.MEDIUM);
       setDueQuick('none');
@@ -119,11 +134,24 @@ export default function TasksScreen() {
       dueDate.setHours(23, 59, 59, 999);
     }
     try {
-      await taskRepository.update(editingId, {
-        title: editingTitle.trim() || undefined,
-        priority: editingPriority,
-        dueDate: dueDate ?? null,
-      });
+      await taskRepository.update(editingId, { title: editingTitle.trim(), priority: editingPriority, dueDate: dueDate || undefined });
+      // Reschedule reminder after edit if due date exists
+      if (dueDate) {
+        let trigger = new Date(dueDate);
+        if (trigger.getHours() !== 0 || trigger.getMinutes() !== 0) {
+          trigger = new Date(dueDate);
+          trigger.setMinutes(Math.max(0, trigger.getMinutes() - 30));
+        } else {
+          trigger = new Date(dueDate);
+          trigger.setHours(10, 0, 0, 0);
+        }
+        try {
+          // Find updated task to pass to schedule
+          const data = await taskRepository.findByUserId(DEFAULT_USER_ID, 200);
+          const t = data.find(x => x.id === editingId);
+          if (t) await scheduleTaskReminder(t, trigger);
+        } catch {}
+      }
       setEditingId(null);
       await load();
     } catch (e) {
