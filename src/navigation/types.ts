@@ -12,6 +12,7 @@ export type MainTabParamList = {
   Finance: undefined;
   Motivation: undefined;
   More: undefined;
+  Sleep: undefined;
 };
 
 export type MoodStackParamList = {
